@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<title>팩터 마진 계산기 모바일</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
+/* Layout: 한 손 조작용 1열. 공통 입력(매입 팩터) → 탭(마진 / 역산 / 조견표) → 큰 결과값 → 보조값 */
+:root{
+  --bg:#f3f4f2;
+  --surface:#ffffff;
+  --ink:#1c2220;
+  --muted:#5b6560;
+  --line:#d6dbd8;
+  --line-strong:#b4bcb8;
+  --accent:#1f5a4a;
+  --accent-weak:#e1ebe6;
+  --loss:#b3261e;
+  --loss-weak:#f7e1de;
+  --font-body:"IBM Plex Sans KR","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+  --font-num:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141816; --surface:#1c211f; --ink:#e4e9e6; --muted:#98a39e; --line:#313935; --line-strong:#48524d;
+    --accent:#7fc3aa; --accent-weak:#223530; --loss:#f08b80; --loss-weak:#3b2320;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141816; --surface:#1c211f; --ink:#e4e9e6; --muted:#98a39e; --line:#313935; --line-strong:#48524d;
+  --accent:#7fc3aa; --accent-weak:#223530; --loss:#f08b80; --loss-weak:#3b2320;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--font-body);
+  font-size:15px;
+  line-height:1.5;
+  padding-inline:16px;
+  padding-block:14px 32px;
+  -webkit-tap-highlight-color:transparent;
+}
+.wrap{max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+
+header{display:flex;justify-content:space-between;align-items:baseline;gap:8px;border-bottom:2px solid var(--ink);padding-bottom:8px}
+h1{margin:0;font-size:17px;font-weight:600}
+header small{font-size:12px;color:var(--muted)}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:12px}
+
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:13px;font-weight:500;color:var(--muted)}
+.input{position:relative;display:flex;align-items:center}
+.input input{
+  width:100%;font-family:var(--font-num);font-size:24px;font-variant-numeric:tabular-nums;
+  padding:10px 12px;min-height:52px;border:1px solid var(--line-strong);border-radius:4px;background:var(--surface);color:var(--ink);
+}
+.input input:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+.input .unit{position:absolute;right:12px;color:var(--muted);font-size:15px;pointer-events:none}
+.input.has-unit input{padding-right:40px}
+.input.small input{font-size:18px;min-height:46px}
+
+details{border-top:1px solid var(--line);padding-top:10px}
+summary{font-size:13px;color:var(--muted);cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;min-height:32px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-family:var(--font-num);font-size:18px;color:var(--muted)}
+details[open] summary::after{content:"−"}
+details .field{margin-top:8px}
+details p{margin:6px 0 0;font-size:12px;color:var(--muted)}
+
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line-strong);border-radius:6px;overflow:hidden;background:var(--surface)}
+.tabs button{font-family:inherit;font-size:14px;font-weight:500;min-height:44px;border:0;border-right:1px solid var(--line-strong);background:transparent;color:var(--muted);cursor:pointer}
+.tabs button:last-child{border-right:0}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--surface)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.result{display:flex;flex-direction:column;gap:2px;padding:4px 0 2px}
+.result .label{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.big{font-family:var(--font-num);font-size:46px;font-weight:500;line-height:1.1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.big.loss{color:var(--loss)}
+
+.chip{display:inline-block;font-size:12px;font-weight:500;padding:2px 8px;border-radius:2px;background:var(--accent-weak);color:var(--accent);white-space:nowrap}
+.chip.loss{background:var(--loss-weak);color:var(--loss)}
+.chip.even{background:var(--bg);color:var(--muted)}
+
+dl.kv{margin:0;display:grid;grid-template-columns:auto 1fr;gap:8px 12px;border-top:1px solid var(--line);padding-top:10px}
+dl.kv dt{color:var(--muted);font-size:13.5px}
+dl.kv dd{margin:0;text-align:right;font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:15px}
+dl.kv .sep{grid-column:1/-1;border-top:1px dashed var(--line)}
+
+.rough{font-family:var(--font-num);font-size:13px;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 10px;line-height:1.6;word-break:keep-all}
+.rough span{display:block;color:var(--muted);font-family:var(--font-body);font-size:12px}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.hint b{color:var(--ink);font-weight:500}
+.msg{color:var(--muted);font-size:14px;margin:0}
+.msg.err{color:var(--loss)}
+
+.presets{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.presets button{font-family:var(--font-num);font-size:15px;min-height:42px;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);border-radius:4px;cursor:pointer}
+.presets button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+
+.copy{font-family:inherit;font-size:14px;font-weight:500;width:100%;min-height:46px;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);border-radius:4px;cursor:pointer}
+.copy:active{background:var(--accent-weak)}
+.copied{display:block;text-align:center;font-size:12.5px;color:var(--accent);min-height:18px}
+
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:9px 4px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;font-weight:500;color:var(--muted);border-bottom:1px solid var(--line-strong)}
+th:first-child,td:first-child{text-align:left}
+td{font-family:var(--font-num);font-size:14px}
+tr.hit td{background:var(--accent-weak);color:var(--accent);font-weight:500}
+tr.cur td{box-shadow:inset 0 -2px 0 var(--accent)}
+.tablewrap{overflow-x:auto;margin:0 -2px}
+.legend{font-size:12px;color:var(--muted);margin:0}
+.out{display:flex;flex-direction:column;gap:12px}
+
+footer{font-size:12px;color:var(--muted);padding:0 2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>팩터 마진 계산기</h1>
+    <small>마진 = 1 − 매입F ÷ 견적F</small>
+  </header>
+
+  <section class="card" aria-label="공통 입력">
+    <div class="field">
+      <label for="p">매입 팩터</label>
+      <div class="input"><input id="p" type="text" inputmode="decimal" autocomplete="off" spellcheck="false"></div>
+    </div>
+    <details id="amt">
+      <summary>금액 환산 (리스트가 입력)</summary>
+      <div class="field">
+        <label for="l">리스트가</label>
+        <div class="input has-unit small"><input id="l" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="예: 10,000,000"><span class="unit">원</span></div>
+      </div>
+      <p>입력하면 매입가·견적가·이익 금액이 같이 표시됩니다.</p>
+    </details>
+  </section>
+
+  <nav class="tabs" role="tablist" aria-label="계산 방식">
+    <button type="button" role="tab" id="tab-margin" aria-controls="pane-margin" data-tab="margin">마진 계산</button>
+    <button type="button" role="tab" id="tab-reverse" aria-controls="pane-reverse" data-tab="reverse">팩터 역산</button>
+    <button type="button" role="tab" id="tab-table" aria-controls="pane-table" data-tab="table">조견표</button>
+  </nav>
+
+  <!-- 마진 계산 -->
+  <section class="card" role="tabpanel" id="pane-margin" aria-labelledby="tab-margin">
+    <div class="field">
+      <label for="q">견적 팩터</label>
+      <div class="input"><input id="q" type="text" inputmode="decimal" autocomplete="off" spellcheck="false"></div>
+    </div>
+    <div class="out" id="marginOut"></div>
+  </section>
+
+  <!-- 팩터 역산 -->
+  <section class="card" role="tabpanel" id="pane-reverse" aria-labelledby="tab-reverse" hidden>
+    <div class="field">
+      <label for="m">목표 마진</label>
+      <div class="input has-unit"><input id="m" type="text" inputmode="decimal" autocomplete="off" spellcheck="false"><span class="unit">%</span></div>
+    </div>
+    <div class="presets" id="presets" aria-label="목표 마진 빠른 선택"></div>
+    <div class="out" id="reverseOut"></div>
+  </section>
+
+  <!-- 조견표 -->
+  <section class="card" role="tabpanel" id="pane-table" aria-labelledby="tab-table" hidden>
+    <div class="out" id="tableOut"></div>
+  </section>
+
+  <footer>마진율은 매출이익률(판매가 대비) 기준입니다. Markup(매입가 대비 인상률)과 구분해서 사용하십시오.</footer>
+</div>
+
+<script>
+(function(){
+  var KEY = 'factorMarginCalc.m.v1';
+  var DEFAULTS = {p:'0.48', q:'0.60', m:'20', l:'', tab:'margin'};
+  var PRESETS = [10, 15, 20, 25, 30];
+  var TABLE_MARGINS = [5, 10, 15, 20, 25, 30, 35, 40];
+  var tab = 'margin';
+
+  function $(id){ return document.getElementById(id); }
+
+  // ---------- 계산 ----------
+  function num(v){
+    if (v == null) return NaN;
+    var s = String(v).replace(/[,\s%원]/g, '');
+    if (s === '' || s === '.' || s === '-') return NaN;
+    return Number(s);
+  }
+  function ceilTo(x, d){ var f = Math.pow(10, d); return Math.ceil(x * f - 1e-9) / f; }
+  function marginOf(p, q){ return 1 - p / q; }
+  function markupOf(p, q){ return q / p - 1; }
+  function quoteFor(p, m){ return p / (1 - m); }
+
+  // ---------- 표시 ----------
+  function fF(x){
+    var s = x.toFixed(4).replace(/0+$/, '');
+    var parts = s.split('.');
+    return parts[0] + '.' + (parts[1] || '').padEnd(2, '0');
+  }
+  function pct(x, d){
+    d = d == null ? 1 : d;
+    var v = x * 100;
+    if (Math.abs(v) < 0.5 * Math.pow(10, -d)) v = 0;
+    return v.toFixed(d) + '%';
+  }
+  function trimPct(x){ return Number((x * 100).toFixed(2)) + '%'; }
+  function won(x){ return Math.round(x).toLocaleString('ko-KR') + '원'; }
+  function statusChip(p, q){
+    if (q < p) return '<span class="chip loss">역마진</span>';
+    if (q === p) return '<span class="chip even">손익분기</span>';
+    return '<span class="chip">마진 확보</span>';
+  }
+
+  // ---------- 저장 ----------
+  function load(){ try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){ return {}; } }
+  function save(){
+    try {
+      localStorage.setItem(KEY, JSON.stringify({p:$('p').value, q:$('q').value, m:$('m').value, l:$('l').value, tab:tab, amt:$('amt').open}));
+    } catch(e){}
+  }
+
+  // ---------- 복사 ----------
+  var copyTexts = {};
+  function copyText(text, btn){
+    var note = btn.nextElementSibling;
+    function done(msg){ if (note){ note.textContent = msg; setTimeout(function(){ note.textContent = ''; }, 1600); } }
+    function fallback(){
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      var ok = false; try { ok = document.execCommand('copy'); } catch(e){}
+      document.body.removeChild(ta);
+      done(ok ? '복사했습니다' : '복사가 막혀 있습니다. 직접 선택해 주세요');
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){ done('복사했습니다'); }, fallback);
+    } else { fallback(); }
+  }
+  function copyRow(id){
+    return '<div><button type="button" class="copy" data-copy="' + id + '">결과 복사 (카톡·메일 붙여넣기용)</button><span class="copied" aria-live="polite"></span></div>';
+  }
+
+  // ---------- 렌더 ----------
+  function render(){
+    var P = num($('p').value), Q = num($('q').value), M = num($('m').value) / 100, L = num($('l').value);
+    var hasP = P > 0, hasL = L > 0;
+    var mValid = !isNaN(M) && M < 1 && M > -1;
+    var out;
+
+    // 마진 계산
+    out = '';
+    if (!hasP) out = '<p class="msg err">매입 팩터를 0보다 큰 숫자로 입력하세요.</p>';
+    else if (!(Q > 0)) out = '<p class="msg err">견적 팩터를 0보다 큰 숫자로 입력하세요.</p>';
+    else {
+      var mg = marginOf(P, Q), mk = markupOf(P, Q), r = P / Q;
+      out += '<div class="result"><div class="label"><span>마진율 (매출이익률)</span>' + statusChip(P, Q) + '</div><div class="big' + (mg < 0 ? ' loss' : '') + '">' + pct(mg) + '</div></div>';
+      out += '<dl class="kv"><dt>Markup (매입가 대비)</dt><dd>' + pct(mk) + '</dd><dt>팩터 차이</dt><dd>' + fF(Q - P) + '</dd>';
+      if (hasL){
+        out += '<div class="sep"></div><dt>매입가</dt><dd>' + won(L * P) + '</dd><dt>견적가</dt><dd>' + won(L * Q) + '</dd><dt>이익</dt><dd>' + won(L * Q - L * P) + '</dd>';
+      }
+      out += '</dl>';
+      out += '<div class="rough"><span>러프 계산</span>' + fF(P) + ' ÷ ' + fF(Q) + ' = ' + fF(r) + '<br>1 − ' + fF(r) + ' = ' + pct(mg) + '</div>';
+      copyTexts.margin = '매입F ' + fF(P) + ' / 견적F ' + fF(Q) + ' → 마진 ' + pct(mg) + ' (Markup ' + pct(mk) + ')' +
+        (hasL ? '\n리스트가 ' + won(L) + ' 기준: 매입가 ' + won(L * P) + ', 견적가 ' + won(L * Q) + ', 이익 ' + won(L * Q - L * P) : '');
+      out += copyRow('margin');
+    }
+    $('marginOut').innerHTML = out;
+
+    // 팩터 역산
+    out = '';
+    if (!hasP) out = '<p class="msg err">매입 팩터를 먼저 입력하세요.</p>';
+    else if (!mValid) out = '<p class="msg err">목표 마진은 −100%보다 크고 100%보다 작아야 합니다.</p>';
+    else {
+      var qx = quoteFor(P, M), qc = ceilTo(qx, 3), mgc = marginOf(P, qc), mk2 = markupOf(P, qx);
+      out += '<div class="result"><div class="label"><span>필요 견적 팩터</span>' + (M < 0 ? '<span class="chip loss">역마진 목표</span>' : '') + '</div><div class="big">' + qx.toFixed(4) + '</div></div>';
+      out += '<dl class="kv"><dt>소수 3자리 올림</dt><dd>' + qc.toFixed(3) + '</dd><dt>올림 적용 시 실마진</dt><dd>' + pct(mgc, 2) + '</dd><dt>Markup</dt><dd>' + pct(mk2) + '</dd>';
+      if (hasL){
+        out += '<div class="sep"></div><dt>견적가 (' + qc.toFixed(3) + ')</dt><dd>' + won(L * qc) + '</dd><dt>이익</dt><dd>' + won(L * qc - L * P) + '</dd>';
+      }
+      out += '</dl>';
+      out += '<div class="rough"><span>러프 계산</span>' + fF(P) + ' ÷ (1 − ' + fF(M) + ')<br>= ' + fF(P) + ' ÷ ' + fF(1 - M) + ' = ' + qx.toFixed(4) + '</div>';
+      if (M > 0){
+        out += '<p class="hint">참고: 매입가에 ' + trimPct(M) + '를 올려(×' + (1 + M).toFixed(2) + ') 견적F <b>' + fF(P * (1 + M)) + '</b>로 내면 실제 마진은 <b>' + pct(M / (1 + M)) + '</b>입니다.</p>';
+      }
+      copyTexts.reverse = '매입F ' + fF(P) + ', 목표 마진 ' + pct(M) + ' → 견적F ' + qx.toFixed(4) + ' (3자리 올림 ' + qc.toFixed(3) + ', 실마진 ' + pct(mgc, 2) + ')' +
+        (hasL ? '\n리스트가 ' + won(L) + ' 기준: 견적가 ' + won(L * qc) + ', 이익 ' + won(L * qc - L * P) : '');
+      out += copyRow('reverse');
+    }
+    $('reverseOut').innerHTML = out;
+
+    Array.prototype.forEach.call($('presets').children, function(b){
+      b.setAttribute('aria-pressed', String(mValid && Math.abs(Number(b.dataset.m) / 100 - M) < 1e-9));
+    });
+
+    // 조견표
+    out = '';
+    if (!hasP) out = '<p class="msg">매입 팩터를 입력하면 표가 채워집니다.</p>';
+    else {
+      var rows = TABLE_MARGINS.slice();
+      var mt = Math.round(M * 10000) / 100;
+      if (mValid && M >= 0 && rows.indexOf(mt) < 0) rows.push(mt);
+      rows.sort(function(a, b){ return a - b; });
+      var curMg = Q > 0 ? marginOf(P, Q) : NaN, curIdx = -1, best = Infinity;
+      rows.forEach(function(r, i){ var d = Math.abs(r / 100 - curMg); if (d < best){ best = d; curIdx = i; } });
+      out += '<p class="legend">매입F ' + fF(P) + ' 기준</p>';
+      out += '<div class="tablewrap"><table><thead><tr><th>마진</th><th>견적F</th><th>3자리 올림</th>' + (hasL ? '<th>견적가</th>' : '<th>Markup</th>') + '</tr></thead><tbody>';
+      rows.forEach(function(r, i){
+        var m = r / 100, q1 = quoteFor(P, m), q3 = ceilTo(q1, 3), cls = [];
+        if (mValid && Math.abs(m - M) < 1e-9) cls.push('hit');
+        if (i === curIdx && !isNaN(curMg)) cls.push('cur');
+        out += '<tr class="' + cls.join(' ') + '"><td>' + (Number.isInteger(r) ? r : r.toFixed(2)) + '%</td><td>' + q1.toFixed(4) + '</td><td>' + q3.toFixed(3) + '</td>' +
+          (hasL ? '<td>' + won(L * q3) + '</td>' : '<td>' + pct(markupOf(P, q1)) + '</td>') + '</tr>';
+      });
+      out += '</tbody></table></div>';
+      out += '<p class="legend">채운 행: 목표 마진 · 밑줄 행: 현재 견적F(' + (Q > 0 ? fF(Q) : '-') + ')에 가장 가까운 마진</p>';
+    }
+    $('tableOut').innerHTML = out;
+
+    save();
+  }
+
+  function setTab(t){
+    tab = t;
+    ['margin', 'reverse', 'table'].forEach(function(k){
+      $('pane-' + k).hidden = k !== t;
+      $('tab-' + k).setAttribute('aria-selected', String(k === t));
+      $('tab-' + k).tabIndex = k === t ? 0 : -1;
+    });
+    save();
+  }
+
+  // ---------- 초기화 ----------
+  var saved = load();
+  ['p', 'q', 'm', 'l'].forEach(function(k){
+    $(k).value = saved[k] != null ? saved[k] : DEFAULTS[k];
+    $(k).addEventListener('input', render);
+  });
+  if (saved.amt || num($('l').value) > 0) $('amt').open = true;
+  $('amt').addEventListener('toggle', save);
+  $('l').addEventListener('blur', function(){
+    var v = num(this.value);
+    if (v > 0){ this.value = Math.round(v).toLocaleString('ko-KR'); render(); }
+  });
+  PRESETS.forEach(function(v){
+    var b = document.createElement('button');
+    b.type = 'button'; b.textContent = v + '%'; b.dataset.m = v;
+    b.addEventListener('click', function(){ $('m').value = String(v); render(); });
+    $('presets').appendChild(b);
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'), function(b){
+    b.addEventListener('click', function(){ setTab(b.dataset.tab); });
+  });
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('[data-copy]');
+    if (b && copyTexts[b.dataset.copy]) copyText(copyTexts[b.dataset.copy], b);
+  });
+  render();
+  setTab(['margin', 'reverse', 'table'].indexOf(saved.tab) >= 0 ? saved.tab : DEFAULTS.tab);
+})();
+</script>
+</body>
+</html>
