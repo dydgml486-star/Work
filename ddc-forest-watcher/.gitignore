@@ -1,0 +1,5 @@
+config.json
+site-dump/
+autofill-*.png
+node_modules/
+*.log

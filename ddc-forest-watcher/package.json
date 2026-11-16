@@ -1,0 +1,16 @@
+{
+  "name": "ddc-forest-watcher",
+  "version": "0.2.0",
+  "private": true,
+  "description": "숲나들e 동두천자연휴양림 예약 자동화 (조회/감시/예약화면 진입 자동, 최종 확정은 사용자)",
+  "main": "watch.js",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "login": "node inspect.js login",
+    "inspect": "node inspect.js capture",
+    "watch": "node watch.js"
+  },
+  "dependencies": {
+    "playwright": "1.63.0"
+  }
+}
