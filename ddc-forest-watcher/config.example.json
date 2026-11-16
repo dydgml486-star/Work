@@ -1,0 +1,77 @@
+{
+  "_comment": "config.json 으로 복사해서 사용. 토큰이 들어가므로 Git 금지(.gitignore 등록됨).",
+
+  "pollIntervalSec": 90,
+
+  "burst": {
+    "_comment": "오픈 구간만 짧은 간격. reminderMin = 오픈 N분 전 알림 1회.",
+    "enabled": true,
+    "windowBeforeMin": 3,
+    "windowAfterMin": 20,
+    "intervalSec": 15,
+    "reminderMin": 15,
+    "schedule": [
+      { "label": "일반 선착순 (6주 뒤 1주분 일괄)", "weekday": "TUE", "time": "09:00" },
+      { "label": "동두천 시민 우선예약", "weekday": "MON", "time": "09:00", "windowAfterMin": 30 },
+      { "label": "취소분 집중 시간대", "weekday": "FRI", "time": "18:00", "intervalSec": 30, "windowAfterMin": 180 }
+    ]
+  },
+
+  "browser": {
+    "_comment": "rows 모드나 --autofill 사용 시 쓰는 브라우저. 프로필에 로그인 세션이 유지된다.",
+    "headless": true
+  },
+
+  "targets": [
+    {
+      "name": "동두천자연휴양림 (숲나들e)",
+      "_comment": "아래 url/json 블록은 `node inspect.js capture` 가 만든 site-dump/suggested-target.json 내용으로 교체.",
+      "mode": "json",
+      "url": "PUT-REAL-AVAILABILITY-REQUEST-URL-HERE",
+      "method": "GET",
+      "headers": { "Referer": "https://www.foresttrip.go.kr/indvz/main.do?hmpgId=ID02030023" },
+      "body": null,
+      "bookingPage": "https://www.foresttrip.go.kr/indvz/main.do?hmpgId=ID02030023",
+
+      "json": { "listPath": "", "dateField": "", "nameField": "", "remainField": "" },
+
+      "rows": {
+        "_comment": "mode=rows (로그인 필요한 HTML 화면) 일 때만 사용.",
+        "rowSelector": "table tbody tr",
+        "nameSelector": "td:nth-of-type(1)",
+        "dateSelector": "td:nth-of-type(2)",
+        "statusSelector": "td:nth-of-type(3)",
+        "availableKeywords": ["예약가능", "신청가능"],
+        "soldoutKeywords": ["마감", "예약완료", "불가", "대기", "휴무"]
+      },
+
+      "watch": {
+        "_comment": "dates 비우면 전체 날짜. priority 앞쪽이 높은 우선순위.",
+        "dates": [],
+        "roomNameContains": [],
+        "roomNameExcludes": [],
+        "priority": ["숲속의집", "휴양관", "캠핑데크"]
+      },
+
+      "autofill": {
+        "_comment": "--autofill 옵션 사용 시 실행할 단계. inspect 결과 보고 채운다. 최종 확정 버튼은 넣지 않는다.",
+        "steps": [
+          { "label": "날짜 선택", "action": "click", "selector": "a[data-date='{date}']" },
+          { "label": "객실 목록 대기", "action": "wait", "selector": "table tbody tr" }
+        ]
+      }
+    }
+  ],
+
+  "notify": {
+    "telegram": { "enabled": false, "botToken": "", "chatId": "" },
+    "console": { "enabled": true },
+    "repeatSuppressMin": 30
+  },
+
+  "http": {
+    "userAgent": "ddc-forest-watcher/0.2 (personal reservation alert)",
+    "timeoutSec": 15,
+    "maxConsecutiveErrors": 10
+  }
+}
